@@ -572,6 +572,7 @@
 
         /* 관리자 패널 */
         .admin-toggle {
+            display: none; /* 기본적으로 숨김 */
             position: fixed;
             bottom: 20px;
             right: 20px;
@@ -583,6 +584,10 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             font-size: 14px;
             z-index: 1500;
+        }
+
+        .admin-toggle.visible {
+            display: block; /* 단축키 입력 시 표시 */
         }
 
         .admin-panel {
@@ -811,7 +816,7 @@
         <div class="visual-overlay">
             <div class="visual-content">
                 <h1>대한민국 No.1<br>롯데렌터카 장기렌트</h1>
-                <p>견적부터 계약까지 한번에!</p>
+                <p>견적부터 계약까지 5분만에!</p>
                 <button class="visual-btn" onclick="scrollToForm()">30초 견적 받기 →</button>
             </div>
         </div>
@@ -1313,8 +1318,30 @@
             }
         }
 
+        // 관리자 인증 상태
+        let isAdminAuthenticated = false;
+        const ADMIN_PASSWORD = 'lotte2025'; // 여기서 비밀번호 변경 가능
+
         // 관리자 패널
         function toggleAdmin() {
+            if (!isAdminAuthenticated) {
+                // 비밀번호 입력 요청
+                const password = prompt('관리자 비밀번호를 입력하세요:');
+                
+                if (password === null) {
+                    // 취소 버튼 클릭
+                    return;
+                }
+                
+                if (password === ADMIN_PASSWORD) {
+                    isAdminAuthenticated = true;
+                    alert('✅ 관리자 인증 성공!');
+                } else {
+                    alert('❌ 비밀번호가 틀렸습니다.');
+                    return;
+                }
+            }
+            
             const panel = document.getElementById('adminPanel');
             panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
         }
@@ -1379,6 +1406,15 @@
 
         // 페이지 로드 시 차량 렌더링
         renderVehicles();
+
+        // 관리자 모드 단축키 (Ctrl + Shift + A)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                const adminToggle = document.querySelector('.admin-toggle');
+                adminToggle.classList.add('visible');
+                alert('🔐 관리자 모드가 활성화되었습니다.\n우측 하단 버튼을 클릭하세요.');
+            }
+        });
 
         // 스크롤 애니메이션
         const observerOptions = {
