@@ -1231,13 +1231,18 @@
             }
         }
 
+        // Google Sheets 연동 설정
+        // ⚠️ 아래 URL을 본인의 Google Apps Script URL로 변경하세요
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzHg7amP0kxLeFLqzkmg1iswEFcS2PZZ1Azr2ZtYts6hbTpdc4ZMjL82ezM-AaTcibD/exec';
+        const USE_GOOGLE_SHEETS = false; // true로 변경하면 Google Sheets 사용
+
         // 폼 제출 처리 - 히어로 섹션
         document.getElementById('heroForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             // 폼 데이터 수집
             const formData = {
-                timestamp: new Date().toISOString(),
+                timestamp: new Date().toLocaleString('ko-KR'),
                 name: this.name.value,
                 phone: this.phone.value,
                 vehicle: this.vehicle.value,
@@ -1246,10 +1251,14 @@
                 source: '히어로 섹션'
             };
             
-            // localStorage에 저장
-            saveFormData(formData);
+            // Google Sheets 또는 localStorage에 저장
+            if (USE_GOOGLE_SHEETS && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_URL_HERE') {
+                saveToGoogleSheets(formData);
+            } else {
+                saveFormData(formData);
+            }
             
-            alert('견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.\n\n💾 데이터가 브라우저에 저장되었습니다.');
+            alert('✅ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.');
             this.reset();
         });
 
@@ -1259,7 +1268,7 @@
             
             // 폼 데이터 수집
             const formData = {
-                timestamp: new Date().toISOString(),
+                timestamp: new Date().toLocaleString('ko-KR'),
                 name: this.name.value,
                 phone: this.phone.value,
                 vehicle: this.vehicle.value,
@@ -1268,16 +1277,43 @@
                 source: '차량 카드'
             };
             
-            // localStorage에 저장
-            saveFormData(formData);
+            // Google Sheets 또는 localStorage에 저장
+            if (USE_GOOGLE_SHEETS && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_URL_HERE') {
+                saveToGoogleSheets(formData);
+            } else {
+                saveFormData(formData);
+            }
             
-            alert('견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.\n\n💾 데이터가 브라우저에 저장되었습니다.');
+            alert('✅ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.');
             document.getElementById('quoteModal').style.display = 'none';
             document.body.style.overflow = 'auto';
             this.reset();
         });
 
-        // 폼 데이터 저장 함수
+        // Google Sheets에 저장
+        async function saveToGoogleSheets(data) {
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                console.log('✅ Google Sheets에 저장 완료');
+                
+                // 백업용으로 localStorage에도 저장
+                saveFormData(data);
+            } catch (error) {
+                console.error('❌ Google Sheets 저장 실패:', error);
+                // 실패 시 localStorage에 저장
+                saveFormData(data);
+            }
+        }
+
+        // 폼 데이터 저장 함수 (localStorage - 백업용)
         function saveFormData(data) {
             // 기존 데이터 가져오기
             let formSubmissions = JSON.parse(localStorage.getItem('lotte_form_submissions') || '[]');
@@ -1288,7 +1324,7 @@
             // localStorage에 저장
             localStorage.setItem('lotte_form_submissions', JSON.stringify(formSubmissions));
             
-            console.log('📝 저장된 데이터:', data);
+            console.log('📝 localStorage에 저장:', data);
             console.log('📊 전체 저장된 견적 신청:', formSubmissions.length + '건');
         }
 
