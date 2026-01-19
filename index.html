@@ -1011,12 +1011,15 @@
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
 
         <h4>차량 이미지 관리</h4>
-        <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
+        <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
             차량 카드 이미지 URL을 입력하세요
+        </p>
+        <p style="font-size: 11px; color: #999; margin-bottom: 15px;">
+            📌 특판차량: 0~5번 / 빠른출고: 6~9번
         </p>
         <div class="image-upload">
             <label style="font-size: 13px; display: block; margin-bottom: 5px;">차량 번호</label>
-            <input type="number" id="vehicleIndex" placeholder="0부터 시작 (예: 0, 1, 2...)" min="0">
+            <input type="number" id="vehicleIndex" placeholder="0~9 (0부터 시작)" min="0" max="9">
         </div>
         <div class="image-upload">
             <label style="font-size: 13px; display: block; margin-bottom: 5px;">이미지 URL</label>
@@ -1024,6 +1027,9 @@
         </div>
         <button onclick="updateImage()" class="submit-btn" style="margin-top: 10px; padding: 10px; font-size: 14px;">
             차량 이미지 업데이트
+        </button>
+        <button onclick="resetAllImages()" class="submit-btn" style="margin-top: 10px; padding: 10px; font-size: 14px; background: #ff9800;">
+            🔄 모든 이미지 초기화
         </button>
         
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
@@ -1356,56 +1362,132 @@
 
         // 메인 배너 이미지 업데이트
         function updateBannerImage() {
-            const bannerUrl = document.getElementById('bannerUrl').value;
+            const bannerUrl = document.getElementById('bannerUrl').value.trim();
             
             if (!bannerUrl) {
-                alert('배너 이미지 URL을 입력하세요');
+                alert('❌ 배너 이미지 URL을 입력하세요');
                 return;
             }
             
+            // URL 유효성 검사
+            if (!bannerUrl.startsWith('http://') && !bannerUrl.startsWith('https://')) {
+                alert('❌ 올바른 URL을 입력하세요 (http:// 또는 https://로 시작)');
+                return;
+            }
+            
+            // 이미지 업데이트
             document.getElementById('mainBannerImg').src = bannerUrl;
-            alert('메인 배너 이미지가 업데이트되었습니다!');
+            
+            // localStorage에 저장
+            localStorage.setItem('lotte_banner_image', bannerUrl);
+            
+            alert('✅ 메인 배너 이미지가 업데이트되었습니다!\n페이지를 새로고침해도 유지됩니다.');
             document.getElementById('bannerUrl').value = '';
         }
 
-        // 이미지 업데이트
+        // 차량 이미지 업데이트
         function updateImage() {
             const index = parseInt(document.getElementById('vehicleIndex').value);
-            const imageUrl = document.getElementById('imageUrl').value;
+            const imageUrl = document.getElementById('imageUrl').value.trim();
             
-            if (isNaN(index)) {
-                alert('차량 번호를 입력하세요 (0부터 시작)');
+            if (isNaN(index) || index < 0) {
+                alert('❌ 올바른 차량 번호를 입력하세요 (0부터 시작)\n\n차량 번호 안내:\n특판차량: 0~5\n빠른출고: 6~9');
                 return;
             }
             
             if (!imageUrl) {
-                alert('이미지 URL을 입력하세요');
+                alert('❌ 이미지 URL을 입력하세요');
                 return;
             }
             
-            // 특판차량인지 빠른출고인지 확인
+            // URL 유효성 검사
+            if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                alert('❌ 올바른 URL을 입력하세요 (http:// 또는 https://로 시작)');
+                return;
+            }
+            
+            // 전체 차량 개수
+            const totalVehicles = specialVehicles.length + fastVehicles.length;
+            
+            if (index >= totalVehicles) {
+                alert(`❌ 유효하지 않은 차량 번호입니다\n\n사용 가능한 번호: 0~${totalVehicles - 1}\n특판차량: 0~${specialVehicles.length - 1}\n빠른출고: ${specialVehicles.length}~${totalVehicles - 1}`);
+                return;
+            }
+            
+            // 차량 이름 가져오기
+            let vehicleName = '';
             if (index < specialVehicles.length) {
+                vehicleName = specialVehicles[index].name;
                 specialVehicles[index].image = imageUrl;
             } else {
                 const fastIndex = index - specialVehicles.length;
-                if (fastIndex < fastVehicles.length) {
-                    fastVehicles[fastIndex].image = imageUrl;
-                } else {
-                    alert('유효하지 않은 차량 번호입니다');
-                    return;
-                }
+                vehicleName = fastVehicles[fastIndex].name;
+                fastVehicles[fastIndex].image = imageUrl;
             }
             
+            // localStorage에 저장
+            saveVehicleImage(index, imageUrl);
+            
+            // 화면 업데이트
             renderVehicles();
-            alert('이미지가 업데이트되었습니다!');
+            
+            alert(`✅ 이미지가 업데이트되었습니다!\n\n차량: ${vehicleName} (번호 ${index})\n페이지를 새로고침해도 유지됩니다.`);
             
             // 입력 필드 초기화
             document.getElementById('vehicleIndex').value = '';
             document.getElementById('imageUrl').value = '';
         }
 
-        // 페이지 로드 시 차량 렌더링
-        renderVehicles();
+        // 차량 이미지 localStorage에 저장
+        function saveVehicleImage(index, imageUrl) {
+            let customImages = JSON.parse(localStorage.getItem('lotte_vehicle_images') || '{}');
+            customImages[index] = imageUrl;
+            localStorage.setItem('lotte_vehicle_images', JSON.stringify(customImages));
+            console.log('✅ 이미지 저장 완료:', index, imageUrl);
+        }
+
+        // 저장된 이미지 불러오기
+        function loadCustomImages() {
+            // 메인 배너 이미지 불러오기
+            const savedBanner = localStorage.getItem('lotte_banner_image');
+            if (savedBanner) {
+                document.getElementById('mainBannerImg').src = savedBanner;
+                console.log('✅ 저장된 배너 이미지 로드:', savedBanner);
+            }
+            
+            // 차량 이미지 불러오기
+            const customImages = JSON.parse(localStorage.getItem('lotte_vehicle_images') || '{}');
+            
+            Object.keys(customImages).forEach(index => {
+                const idx = parseInt(index);
+                const imageUrl = customImages[index];
+                
+                if (idx < specialVehicles.length) {
+                    specialVehicles[idx].image = imageUrl;
+                    console.log(`✅ 특판차량 ${idx} 이미지 로드:`, imageUrl);
+                } else {
+                    const fastIndex = idx - specialVehicles.length;
+                    if (fastIndex < fastVehicles.length) {
+                        fastVehicles[fastIndex].image = imageUrl;
+                        console.log(`✅ 빠른출고 ${fastIndex} 이미지 로드:`, imageUrl);
+                    }
+                }
+            });
+        }
+
+        // 이미지 초기화 함수
+        function resetAllImages() {
+            if (confirm('⚠️ 모든 커스텀 이미지를 초기화하시겠습니까?\n기본 이미지로 복원됩니다.')) {
+                localStorage.removeItem('lotte_banner_image');
+                localStorage.removeItem('lotte_vehicle_images');
+                alert('✅ 모든 이미지가 초기화되었습니다.\n페이지를 새로고침하세요.');
+                location.reload();
+            }
+        }
+
+        // 페이지 로드 시 실행
+        loadCustomImages(); // 저장된 이미지 먼저 불러오기
+        renderVehicles(); // 차량 렌더링
 
         // URL 파라미터로 관리자 모드 활성화 체크
         const urlParams = new URLSearchParams(window.location.search);
