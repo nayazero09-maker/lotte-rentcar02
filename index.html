@@ -996,6 +996,26 @@
     <!-- 관리자 패널 -->
     <div class="admin-toggle" onclick="toggleAdmin()">⚙️ 관리자</div>
     <div class="admin-panel" id="adminPanel">
+        <h4>🔧 Google Sheets 설정 상태</h4>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+            <p style="margin: 5px 0;">
+                <strong>Google Sheets 사용:</strong> 
+                <span id="sheetsStatus" style="color: #f44336; font-weight: bold;">❌ 미설정</span>
+            </p>
+            <p style="margin: 5px 0;">
+                <strong>Script URL:</strong> 
+                <span id="sheetsUrl" style="color: #666; font-size: 11px; word-break: break-all;">설정 필요</span>
+            </p>
+        </div>
+        <button onclick="checkGoogleSheetsConfig()" class="submit-btn" style="padding: 10px; font-size: 14px; background: #2196F3; margin-bottom: 15px;">
+            🔍 설정 상태 확인
+        </button>
+        <button onclick="testGoogleSheets()" class="submit-btn" style="padding: 10px; font-size: 14px; background: #4CAF50; margin-bottom: 15px;">
+            🧪 Google Sheets 테스트
+        </button>
+        
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
         <h4>메인 배너 관리</h4>
         <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
             최상단 메인 배너 이미지 변경
@@ -1036,13 +1056,13 @@
         
         <h4>데이터 관리</h4>
         <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
-            저장된 견적 신청 데이터 관리
+            저장된 견적 신청 데이터 관리 (localStorage)
         </p>
         <button onclick="viewSavedData()" class="submit-btn" style="margin-top: 10px; padding: 10px; font-size: 14px; background: #4CAF50;">
-            📊 저장된 데이터 보기
+            📊 저장된 데이터 보기 (브라우저)
         </button>
         <button onclick="clearSavedData()" class="submit-btn" style="margin-top: 10px; padding: 10px; font-size: 14px; background: #f44336;">
-            🗑️ 데이터 전체 삭제
+            🗑️ 데이터 전체 삭제 (브라우저)
         </button>
     </div>
 
@@ -1231,101 +1251,194 @@
             }
         }
 
-        // Google Sheets 연동 설정
+        // ==========================================
+        // Google Sheets 설정
+        // ==========================================
+        
         // ⚠️ 아래 URL을 본인의 Google Apps Script URL로 변경하세요
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzHg7amP0kxLeFLqzkmg1iswEFcS2PZZ1Azr2ZtYts6hbTpdc4ZMjL82ezM-AaTcibD/exec';
-        const USE_GOOGLE_SHEETS = false; // true로 변경하면 Google Sheets 사용
+        // 예: 'https://script.google.com/macros/s/AKfycby.../exec'
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec';
+        
+        // true로 변경하면 Google Sheets 사용 시작
+        const USE_GOOGLE_SHEETS = false;
+        
+        // 디버그 모드 (문제 해결용)
+        const DEBUG_MODE = true;
 
+        // ==========================================
         // 폼 제출 처리 - 히어로 섹션
-        document.getElementById('heroForm').addEventListener('submit', function(e) {
+        // ==========================================
+        document.getElementById('heroForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            if (DEBUG_MODE) console.log('📝 히어로 섹션 폼 제출 시작');
             
             // 폼 데이터 수집
             const formData = {
-                timestamp: new Date().toLocaleString('ko-KR'),
-                name: this.name.value,
-                phone: this.phone.value,
-                vehicle: this.vehicle.value,
-                deposit: this.deposit.checked ? '유' : '',
-                noDeposit: this.noDeposit.checked ? '무' : '',
+                timestamp: new Date().toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }),
+                name: this.name.value.trim(),
+                phone: this.phone.value.trim(),
+                vehicle: this.vehicle.value.trim(),
+                deposit: this.deposit.checked ? '보증금 있음' : '',
+                noDeposit: this.noDeposit.checked ? '보증금 없음' : '',
                 source: '히어로 섹션'
             };
             
-            // Google Sheets 또는 localStorage에 저장
-            if (USE_GOOGLE_SHEETS && GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbzHg7amP0kxLeFLqzkmg1iswEFcS2PZZ1Azr2ZtYts6hbTpdc4ZMjL82ezM-AaTcibD/exec') {
-                saveToGoogleSheets(formData);
+            if (DEBUG_MODE) console.log('📊 수집된 데이터:', formData);
+            
+            // Google Sheets 사용 여부 확인
+            if (USE_GOOGLE_SHEETS && GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec') {
+                if (DEBUG_MODE) console.log('🌐 Google Sheets로 전송 시도...');
+                const success = await saveToGoogleSheets(formData);
+                
+                if (success) {
+                    alert('✅ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.\n\n📊 데이터가 Google Sheets에 저장되었습니다.');
+                } else {
+                    alert('⚠️ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.\n\n💾 데이터가 임시 저장되었습니다.');
+                }
             } else {
+                if (DEBUG_MODE) {
+                    console.log('⚠️ Google Sheets 미사용');
+                    console.log('USE_GOOGLE_SHEETS:', USE_GOOGLE_SHEETS);
+                    console.log('GOOGLE_SCRIPT_URL:', GOOGLE_SCRIPT_URL);
+                }
+                alert('⚠️ Google Sheets가 설정되지 않았습니다!\n\n관리자에게 문의하세요.\n\n임시로 브라우저에 저장됩니다.');
                 saveFormData(formData);
             }
             
-            alert('✅ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.');
             this.reset();
         });
 
+        // ==========================================
         // 폼 제출 처리 - 모달
-        document.getElementById('modalForm').addEventListener('submit', function(e) {
+        // ==========================================
+        document.getElementById('modalForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            if (DEBUG_MODE) console.log('📝 모달 폼 제출 시작');
             
             // 폼 데이터 수집
             const formData = {
-                timestamp: new Date().toLocaleString('ko-KR'),
-                name: this.name.value,
-                phone: this.phone.value,
-                vehicle: this.vehicle.value,
-                deposit: this.deposit.checked ? '유' : '',
-                noDeposit: this.noDeposit.checked ? '무' : '',
-                source: '차량 카드'
+                timestamp: new Date().toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }),
+                name: this.name.value.trim(),
+                phone: this.phone.value.trim(),
+                vehicle: this.vehicle.value.trim(),
+                deposit: this.deposit.checked ? '보증금 있음' : '',
+                noDeposit: this.noDeposit.checked ? '보증금 없음' : '',
+                source: '차량 카드 (' + currentVehicle + ')'
             };
             
-            // Google Sheets 또는 localStorage에 저장
-            if (USE_GOOGLE_SHEETS && GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbzHg7amP0kxLeFLqzkmg1iswEFcS2PZZ1Azr2ZtYts6hbTpdc4ZMjL82ezM-AaTcibD/exec') {
-                saveToGoogleSheets(formData);
+            if (DEBUG_MODE) console.log('📊 수집된 데이터:', formData);
+            
+            // Google Sheets 사용 여부 확인
+            if (USE_GOOGLE_SHEETS && GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec') {
+                if (DEBUG_MODE) console.log('🌐 Google Sheets로 전송 시도...');
+                const success = await saveToGoogleSheets(formData);
+                
+                if (success) {
+                    alert('✅ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.\n\n📊 데이터가 Google Sheets에 저장되었습니다.');
+                } else {
+                    alert('⚠️ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.\n\n💾 데이터가 임시 저장되었습니다.');
+                }
             } else {
+                if (DEBUG_MODE) {
+                    console.log('⚠️ Google Sheets 미사용');
+                    console.log('USE_GOOGLE_SHEETS:', USE_GOOGLE_SHEETS);
+                    console.log('GOOGLE_SCRIPT_URL:', GOOGLE_SCRIPT_URL);
+                }
+                alert('⚠️ Google Sheets가 설정되지 않았습니다!\n\n관리자에게 문의하세요.\n\n임시로 브라우저에 저장됩니다.');
                 saveFormData(formData);
             }
             
-            alert('✅ 견적 신청이 접수되었습니다!\n담당자가 곧 연락드리겠습니다.');
             document.getElementById('quoteModal').style.display = 'none';
             document.body.style.overflow = 'auto';
             this.reset();
         });
 
-        // Google Sheets에 저장
+        // ==========================================
+        // Google Sheets에 저장 (개선된 버전)
+        // ==========================================
         async function saveToGoogleSheets(data) {
             try {
+                if (DEBUG_MODE) {
+                    console.log('='.repeat(50));
+                    console.log('📤 Google Sheets 전송 시작');
+                    console.log('URL:', GOOGLE_SCRIPT_URL);
+                    console.log('데이터:', data);
+                }
+                
                 const response = await fetch(GOOGLE_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'no-cors', // 중요: CORS 우회
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(data)
                 });
                 
-                console.log('✅ Google Sheets에 저장 완료');
+                if (DEBUG_MODE) {
+                    console.log('✅ 전송 완료 (no-cors 모드)');
+                    console.log('='.repeat(50));
+                }
                 
+                // no-cors 모드에서는 응답을 읽을 수 없으므로 성공으로 간주
                 // 백업용으로 localStorage에도 저장
                 saveFormData(data);
+                
+                return true;
+                
             } catch (error) {
-                console.error('❌ Google Sheets 저장 실패:', error);
+                if (DEBUG_MODE) {
+                    console.error('❌ Google Sheets 전송 실패');
+                    console.error('에러:', error);
+                    console.log('='.repeat(50));
+                }
+                
                 // 실패 시 localStorage에 저장
                 saveFormData(data);
+                
+                return false;
             }
         }
 
-        // 폼 데이터 저장 함수 (localStorage - 백업용)
+        // ==========================================
+        // localStorage에 저장 (백업용)
+        // ==========================================
         function saveFormData(data) {
-            // 기존 데이터 가져오기
-            let formSubmissions = JSON.parse(localStorage.getItem('lotte_form_submissions') || '[]');
-            
-            // 새 데이터 추가
-            formSubmissions.push(data);
-            
-            // localStorage에 저장
-            localStorage.setItem('lotte_form_submissions', JSON.stringify(formSubmissions));
-            
-            console.log('📝 localStorage에 저장:', data);
-            console.log('📊 전체 저장된 견적 신청:', formSubmissions.length + '건');
+            try {
+                // 기존 데이터 가져오기
+                let formSubmissions = JSON.parse(localStorage.getItem('lotte_form_submissions') || '[]');
+                
+                // 새 데이터 추가
+                formSubmissions.push(data);
+                
+                // localStorage에 저장
+                localStorage.setItem('lotte_form_submissions', JSON.stringify(formSubmissions));
+                
+                if (DEBUG_MODE) {
+                    console.log('💾 localStorage에 저장 완료');
+                    console.log('📊 총 저장된 견적:', formSubmissions.length + '건');
+                }
+                
+            } catch (error) {
+                console.error('❌ localStorage 저장 실패:', error);
+            }
         }
 
         // 저장된 데이터 확인 함수
@@ -1360,6 +1473,122 @@
             }
         }
 
+        // ==========================================
+        // Google Sheets 설정 확인
+        // ==========================================
+        function checkGoogleSheetsConfig() {
+            console.log('='.repeat(50));
+            console.log('🔍 Google Sheets 설정 상태 확인');
+            console.log('='.repeat(50));
+            
+            const statusElement = document.getElementById('sheetsStatus');
+            const urlElement = document.getElementById('sheetsUrl');
+            
+            // 설정 상태 표시
+            if (USE_GOOGLE_SHEETS) {
+                statusElement.textContent = '✅ 활성화';
+                statusElement.style.color = '#4CAF50';
+            } else {
+                statusElement.textContent = '❌ 비활성화';
+                statusElement.style.color = '#f44336';
+            }
+            
+            // URL 표시
+            if (GOOGLE_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec') {
+                urlElement.textContent = '⚠️ URL 미설정';
+                urlElement.style.color = '#ff9800';
+            } else {
+                urlElement.textContent = GOOGLE_SCRIPT_URL;
+                urlElement.style.color = '#4CAF50';
+            }
+            
+            // 콘솔에 상세 정보 출력
+            console.log('USE_GOOGLE_SHEETS:', USE_GOOGLE_SHEETS);
+            console.log('GOOGLE_SCRIPT_URL:', GOOGLE_SCRIPT_URL);
+            console.log('DEBUG_MODE:', DEBUG_MODE);
+            
+            // 결과 메시지
+            let message = '📋 Google Sheets 설정 상태:\n\n';
+            
+            if (!USE_GOOGLE_SHEETS) {
+                message += '❌ Google Sheets가 비활성화되어 있습니다.\n\n';
+                message += '활성화 방법:\n';
+                message += '1. HTML 파일에서 USE_GOOGLE_SHEETS를 true로 변경\n';
+                message += '2. GOOGLE_SCRIPT_URL에 Apps Script URL 입력\n';
+                message += '3. 파일 저장 후 GitHub에 업로드';
+            } else if (GOOGLE_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec') {
+                message += '⚠️ Google Sheets는 활성화되었지만 URL이 설정되지 않았습니다.\n\n';
+                message += '해결 방법:\n';
+                message += '1. Google Apps Script에서 웹 앱 배포\n';
+                message += '2. 생성된 URL 복사\n';
+                message += '3. HTML 파일의 GOOGLE_SCRIPT_URL에 붙여넣기\n';
+                message += '4. 파일 저장 후 GitHub에 업로드';
+            } else {
+                message += '✅ Google Sheets가 올바르게 설정되었습니다!\n\n';
+                message += 'URL: ' + GOOGLE_SCRIPT_URL.substring(0, 50) + '...\n\n';
+                message += '"🧪 Google Sheets 테스트" 버튼을 눌러 작동을 확인하세요.';
+            }
+            
+            console.log('='.repeat(50));
+            alert(message);
+        }
+
+        // ==========================================
+        // Google Sheets 테스트
+        // ==========================================
+        async function testGoogleSheets() {
+            if (!USE_GOOGLE_SHEETS) {
+                alert('❌ Google Sheets가 비활성화되어 있습니다.\n\n먼저 설정을 활성화하세요.');
+                return;
+            }
+            
+            if (GOOGLE_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec') {
+                alert('❌ Google Script URL이 설정되지 않았습니다.\n\nApps Script 배포 후 URL을 입력하세요.');
+                return;
+            }
+            
+            console.log('='.repeat(50));
+            console.log('🧪 Google Sheets 테스트 시작');
+            console.log('='.repeat(50));
+            
+            // 테스트 데이터 생성
+            const testData = {
+                timestamp: new Date().toLocaleString('ko-KR'),
+                name: '테스트',
+                phone: '010-0000-0000',
+                vehicle: '테스트 차량',
+                deposit: '테스트',
+                noDeposit: '',
+                source: '관리자 패널 테스트'
+            };
+            
+            console.log('📤 테스트 데이터 전송:', testData);
+            
+            alert('🧪 테스트 데이터를 Google Sheets로 전송합니다.\n\n전송 중...');
+            
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                console.log('✅ 전송 완료');
+                console.log('='.repeat(50));
+                
+                alert('✅ 테스트 전송 완료!\n\nGoogle Sheets를 확인하세요.\n\n새 행에 다음 데이터가 추가되었는지 확인:\n- 이름: 테스트\n- 연락처: 010-0000-0000\n- 차량: 테스트 차량\n- 출처: 관리자 패널 테스트');
+                
+            } catch (error) {
+                console.error('❌ 전송 실패:', error);
+                console.log('='.repeat(50));
+                
+                alert('❌ 테스트 전송 실패!\n\n에러: ' + error.message + '\n\n다음을 확인하세요:\n1. Apps Script URL이 올바른가?\n2. 웹 앱이 배포되었는가?\n3. 액세스 권한이 "모든 사용자"인가?');
+            }
+        }
+
         // 관리자 인증 상태
         let isAdminAuthenticated = false;
         const ADMIN_PASSWORD = 'lotte2025'; // 여기서 비밀번호 변경 가능
@@ -1386,6 +1615,28 @@
             
             const panel = document.getElementById('adminPanel');
             panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+            
+            // 패널이 열릴 때 설정 상태 자동 업데이트
+            if (panel.style.display === 'block') {
+                const statusElement = document.getElementById('sheetsStatus');
+                const urlElement = document.getElementById('sheetsUrl');
+                
+                if (USE_GOOGLE_SHEETS) {
+                    statusElement.textContent = '✅ 활성화';
+                    statusElement.style.color = '#4CAF50';
+                } else {
+                    statusElement.textContent = '❌ 비활성화';
+                    statusElement.style.color = '#f44336';
+                }
+                
+                if (GOOGLE_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbxp1tpGYJZcuxipWwIAHy4r4nGOQiB9Z28Ti7Pa-eccACfNeaVPIbfQ1xEPsQQpEngd/exec') {
+                    urlElement.textContent = '⚠️ URL 미설정';
+                    urlElement.style.color = '#ff9800';
+                } else {
+                    urlElement.textContent = GOOGLE_SCRIPT_URL.substring(0, 60) + '...';
+                    urlElement.style.color = '#4CAF50';
+                }
+            }
         }
 
         // 스크롤 함수
